@@ -104,7 +104,7 @@ class Fragment extends Component {
 
     const currentRoute = resolveCurrentRoute(props.parentRoute, props.forRoute);
 
-    this.matcher = (currentRoute && new UrlPattern(currentRoute)) || null;
+    this.matcher = (currentRoute && new UrlPattern(currentRoute, {segmentValueCharset: 'a-zA-Z0-9-_~ %.'})) || null;
   }
 
   componentWillReceiveProps(nextProps: Props) {

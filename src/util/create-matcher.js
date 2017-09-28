@@ -33,7 +33,7 @@ const eagerMatcher = (routeList: Array<RouteCache>) =>
 export default (routes: Object) => {
   const routeList = Object.keys(routes).sort().reverse().map(route => ({
     route,
-    pattern: new UrlPattern(route),
+    pattern: new UrlPattern(route, {segmentValueCharset: 'a-zA-Z0-9-_~ %.'}),
     result: routes[route]
   }));
 
