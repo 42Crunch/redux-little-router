@@ -1,6 +1,7 @@
 // @flow
 /* eslint-disable react/sort-comp */
 import type { Location } from '../types';
+import type { UrlPatternOptions } from 'url-pattern'
 
 import UrlPattern from 'url-pattern';
 import React, { Children, Component } from 'react';
@@ -93,6 +94,7 @@ type Props = {
   withConditions?: (location: Location) => boolean,
   forNoMatch?: boolean,
   parentId?: string,
+  patternOptions?: UrlPatternOptions,
   children: React.Element<*>
 };
 
@@ -104,7 +106,7 @@ class Fragment extends Component {
 
     const currentRoute = resolveCurrentRoute(props.parentRoute, props.forRoute);
 
-    this.matcher = (currentRoute && new UrlPattern(currentRoute)) || null;
+    this.matcher = (currentRoute && new UrlPattern(currentRoute, props.patternOptions)) || null;
   }
 
   componentWillReceiveProps(nextProps: Props) {
