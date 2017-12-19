@@ -1,56 +1,77 @@
 import chai, { expect } from 'chai';
 import sinonChai from 'sinon-chai';
 
-import { applyMiddleware, combineReducers, createStore, compose } from 'redux';
+import { fromJS } from 'immutable';
+import { combineReducers as combineReduxReducers } from 'redux';
+import { combineReducers as combineImmutableReducers } from 'redux-immutable';
 
 import routerForExpress from '../../src/environment/express-router';
+import immutableRouterForExpress from '../../src/immutable/environment/express-router';
 
+import { setupStoreForEnv } from '../test-util';
 import routes from '../test-util/fixtures/routes';
 
 chai.use(sinonChai);
 
-describe('Express router', () => {
-  it('creates a server store enhancer using Express request object', () => {
-    const { enhancer, middleware, reducer } = routerForExpress({
-      routes,
-      request: {
-        path: '/home',
-        query: { get: 'schwifty' }
-      }
-    });
-    const store = createStore(
-      combineReducers({ router: reducer }),
-      {},
-      compose(enhancer, applyMiddleware(middleware))
-    );
-    const state = store.getState();
-    expect(state).to.have.nested.property('router.pathname', '/home');
-    expect(state).to.have.nested.property('router.search', '?get=schwifty');
-    expect(state).to.have.nested
-      .property('router.query')
-      .that.deep.equals({ get: 'schwifty' });
-  });
+const expressRouterTest = {
+  router: routerForExpress,
+  combineReducers: combineReduxReducers,
+  toState: state => state,
+  readState: state => state,
+  testLabel: 'express router'
+};
+const immutableExpressRouterTest = {
+  router: immutableRouterForExpress,
+  combineReducers: combineImmutableReducers,
+  toState: state => fromJS(state),
+  readState: state => state.toJS(),
+  testLabel: 'immutable express router'
+};
 
-  it('supports basenames', () => {
-    const { enhancer, middleware, reducer } = routerForExpress({
-      routes,
-      request: {
-        baseUrl: '/cob-planet',
-        path: '/home',
-        query: { get: 'schwifty' }
-      }
+[expressRouterTest, immutableExpressRouterTest].forEach(({
+  router,
+  combineReducers,
+  toState,
+  readState,
+  testLabel
+}) => {
+  describe(`${testLabel}`, () => {
+    const setupExpressStore = setupStoreForEnv(router, combineReducers, toState({}));
+
+    it('creates a server store enhancer using Express request object', () => {
+      const store = setupExpressStore({
+        routes,
+        request: {
+          path: '/home',
+          query: { get: 'schwifty' }
+        }
+      });
+
+      const state = readState(store.getState());
+      expect(state).to.have.nested.property('router.pathname', '/home');
+      expect(state).to.have.nested.property('router.search', '?get=schwifty');
+      expect(state).to.have.nested
+        .property('router.query')
+        .that.deep.equals({ get: 'schwifty' });
     });
-    const store = createStore(
-      combineReducers({ router: reducer }),
-      {},
-      compose(enhancer, applyMiddleware(middleware))
-    );
-    const state = store.getState();
-    expect(state).to.have.nested.property('router.basename', '/cob-planet');
-    expect(state).to.have.nested.property('router.pathname', '/home');
-    expect(state).to.have.nested.property('router.search', '?get=schwifty');
-    expect(state).to.have.nested
-      .property('router.query')
-      .that.deep.equals({ get: 'schwifty' });
+
+    it('supports basenames', () => {
+      const store = setupExpressStore({
+        routes,
+        request: {
+          baseUrl: '/cob-planet',
+          path: '/home',
+          query: { get: 'schwifty' }
+        }
+      });
+
+      const state = readState(store.getState());
+      expect(state).to.have.nested.property('router.basename', '/cob-planet');
+      expect(state).to.have.nested.property('router.pathname', '/home');
+      expect(state).to.have.nested.property('router.search', '?get=schwifty');
+      expect(state).to.have.nested
+        .property('router.query')
+        .that.deep.equals({ get: 'schwifty' });
+    });
   });
 });

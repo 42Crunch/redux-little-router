@@ -4,9 +4,9 @@ import type { Href, Location } from '../types';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
-import qs from 'query-string';
 
 import { push as pushAction, replace as replaceAction } from '../actions';
+import mergeQueries from '../util/merge-queries';
 import normalizeHref from '../util/normalize-href';
 import stringifyHref from '../util/stringify-href';
 
@@ -68,78 +68,81 @@ const contextifyHref = (href, location, persistQuery) => {
     return href;
   }
 
-  const query = {
-    ...(location.query || {}),
-    ...(href.query || {})
-  };
-
-  const search = qs.stringify(query);
+  const mergedQuery = mergeQueries(
+    location.query,
+    href.query
+  );
 
   return {
     ...href,
-    query,
-    search: (search && `?${search}`) || ''
+    ...mergedQuery
   };
 };
 
-const Link = (props: Props) => {
-  const {
-    href: rawHref,
-    location,
-    children,
-    onClick,
-    target,
-    activeProps,
-    replaceState,
-    persistQuery,
-    push,
-    replace,
-    ...rest
-  } = props;
+class LinkComponent extends Component {
+  constructor(props: Props) {
+    super(props);
+  }
 
-  // Ensure the href has both a search and a query when needed
-  const normalizedHref = normalizeHref(rawHref);
-  const href = contextifyHref(normalizedHref, location, persistQuery);
-  const isActive = href.pathname === location.pathname;
-  const activeRest = (isActive && activeProps) || {};
-
-  const clickHandler = e =>
-    handleClick({
-      e,
-      target,
-      href,
+  render() {
+    const {
+      href: rawHref,
+      location,
+      children,
       onClick,
+      target,
+      activeProps,
       replaceState,
       persistQuery,
       push,
-      replace
-    });
+      replace,
+      ...rest
+    } = this.props;
 
-  return (
-    <a
-      href={stringifyHref(href, location.basename)}
-      onClick={clickHandler}
-      target={target}
-      {...rest}
-      {...activeRest}
-    >
-      {children}
-    </a>
-  );
-};
+    // Ensure the href has both a search and a query when needed
+    const normalizedHref = normalizeHref(rawHref);
+    const href = contextifyHref(normalizedHref, location, persistQuery);
+    const isActive = href.pathname === location.pathname;
+    const activeRest = (isActive && activeProps) || {};
 
-const PersistentQueryLink = class extends Component {
+    const clickHandler = e =>
+      handleClick({
+        e,
+        target,
+        href,
+        onClick,
+        replaceState,
+        persistQuery,
+        push,
+        replace
+      });
+
+    return (
+      <a
+        href={stringifyHref(href, location.basename)}
+        onClick={clickHandler}
+        target={target}
+        {...rest}
+        {...activeRest}
+      >
+        {children}
+      </a>
+    );
+  }
+}
+
+const PersistentQueryLinkComponent = class extends Component {
   render() {
     const { children, ...rest } = this.props;
     return (
-      <Link {...rest} persistQuery>
+      <LinkComponent {...rest} persistQuery>
         {children}
-      </Link>
+      </LinkComponent>
     );
   }
 };
 
-PersistentQueryLink.propTypes = {
+PersistentQueryLinkComponent.propTypes = {
   children: PropTypes.node
 };
 
@@ -150,10 +153,13 @@ const mapDispatchToProps = {
 };
 const withLocation = connect(mapStateToProps, mapDispatchToProps);
 
-const LinkWithLocation = withLocation(Link);
-const PersistentQueryLinkWithLocation = withLocation(PersistentQueryLink);
+const LinkWithLocation = withLocation(LinkComponent);
+const PersistentQueryLinkWithLocation = withLocation(PersistentQueryLinkComponent);
 
 export {
   LinkWithLocation as Link,
-  PersistentQueryLinkWithLocation as PersistentQueryLink
+  PersistentQueryLinkWithLocation as PersistentQueryLink,
+  LinkComponent,
+  PersistentQueryLinkComponent,
+  mapDispatchToProps
 };

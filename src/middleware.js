@@ -1,9 +1,8 @@
-/* eslint-disable consistent-return */
 // @flow
-
+/* eslint-disable consistent-return */
 import type { History } from 'history';
-import type { Dispatch } from 'redux';
-import type { RouterAction } from './types';
+import type { Dispatch, Store } from 'redux';
+import type { RouterAction, Query, State } from './types';
 
 import {
   PUSH,
@@ -13,6 +12,19 @@ import {
   GO_FORWARD,
   isNavigationAction
 } from './types';
+
+import mergeQueries from './util/merge-queries';
+
+export type MiddlewareArgs = {
+  history: History
+};
+
+type HandleNavArgs = {
+  next: Dispatch<*>,
+  action: RouterAction,
+  history: History,
+  query?: Query
+};
 
 const navigate = (history, action) => {
   switch (action.type) {
@@ -36,18 +48,36 @@ const navigate = (history, action) => {
   }
 };
 
-type MiddlewareArgs = { history: History };
+export const handleNavigationAction = ({ next, action, history, query }: HandleNavArgs) => {
+  // Synchronously dispatch the original action so that the
+  // reducer can add it to its location queue
+  const originalDispatch = next(action);
+
+  if (
+    (action.type === PUSH || action.type === REPLACE) &&
+    action.payload.options &&
+    action.payload.options.persistQuery
+  ) {
+    navigate(history, {
+      type: action.type,
+      payload: {
+        ...action.payload,
+        ...mergeQueries(query, action.payload.query)
+      }
+    });
+  } else {
+    navigate(history, action);
+  }
+
+  return originalDispatch;
+};
+
 export default ({ history }: MiddlewareArgs) =>
-  () =>
+  ({ getState }: Store<State, *>) =>
     (next: Dispatch<*>) =>
       (action: RouterAction) => {
-        if (isNavigationAction(action)) {
-          // Synchronously dispatch the original action so that the
-          // reducer can add it to its location queue
-          const originalDispatch = next(action);
-          navigate(history, action);
-          return originalDispatch;
-        }
-
-        return next(action);
+        const { query } = getState().router;
+        return isNavigationAction(action) ?
+          handleNavigationAction({ next, action, history, query }) :
+          next(action);
       };
